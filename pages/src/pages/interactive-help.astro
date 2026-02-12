@@ -1,24 +1,33 @@
 ---
-import { joinURL } from "ufo";
+import { joinURL, withTrailingSlash } from "ufo";
 
 import Layout from "../layouts/Layout.astro";
 import Chat from "../components/Chat.svelte";
 
+import { PRODUCTION_BASE_URL } from "../lib/info.js";
+
 const { BASE_URL } = import.meta.env;
 ---
 
-<Layout
-  lang="en"
-  title="Interactive Help for OBS Background Removal"
-  description="Interactive Help for OBS Background Removal"
->
+<Layout lang="en" title="Interactive Help for OBS Background Removal">
+  <Fragment slot="head-info">
+    <meta
+      name="description"
+      content="Interactive Help for OBS Background Removal"
+    />
+    <link
+      rel="canonical"
+      href={withTrailingSlash(joinURL(PRODUCTION_BASE_URL, "interactive-help"))}
+    />
+  </Fragment>
+
   <main class="white-box">
     <Chat client:load />
 
     <div class="disclaimer-note">
       <p>
-        <strong>🔬 Experimental Notice:</strong> This is an experimental feature
-        and may experience unexpected behavior or changes.
+        <strong>🔬 Experimental Notice:</strong> This is an experimental feature and
+        may experience unexpected behavior or changes.
       </p>
       <p>
         <strong>🔒 Privacy Notice:</strong> This chat operates entirely within your

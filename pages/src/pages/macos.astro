@@ -1,11 +1,26 @@
 ---
-import { joinURL } from "ufo";
+import { joinURL, withTrailingSlash } from "ufo";
+import { Octokit, type RestEndpointMethodTypes } from "@octokit/rest";
 
 import Layout from "../layouts/Layout.astro";
 
-import { getLatestRelease } from "../lib/github";
+import { GITHUB_OWNER, GITHUB_REPO, PRODUCTION_BASE_URL } from "../lib/info.js";
+
+export type LatestRelease =
+  RestEndpointMethodTypes["repos"]["getLatestRelease"]["response"]["data"];
 
 const { BASE_URL } = import.meta.env;
+
+async function getLatestRelease(): Promise<LatestRelease> {
+  const octokit = new Octokit({ auth: import.meta.env.GITHUB_TOKEN });
+
+  const latestRelease = await octokit.rest.repos.getLatestRelease({
+    owner: GITHUB_OWNER,
+    repo: GITHUB_REPO,
+  });
+
+  return latestRelease.data;
+}
 
 const release = await getLatestRelease();
 
@@ -13,17 +28,29 @@ const asset = release.assets.find((e) => /macos-universal\.pkg/.test(e.name));
 if (!asset) throw new Error("macOS asset not found!");
 ---
 
-<Layout
-  lang="en"
-  title="How to use OBS Background Removal on macOS"
-  description="How to use OBS Background Removal on macOS"
->
+<Layout lang="en" title="How to use OBS Background Removal on macOS">
+  <Fragment slot="head-info">
+    <meta
+      name="description"
+      content="How to use OBS Background Removal on macOS"
+    />
+    <link
+      rel="canonical"
+      href={withTrailingSlash(joinURL(PRODUCTION_BASE_URL, "macos"))}
+    />
+  </Fragment>
+
   <main class="white-box">
     <h1>Install OBS Background Removal on macOS</h1>
 
-    <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px; margin-bottom: 20px;">
+    <div
+      style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px; margin-bottom: 20px;"
+    >
       <strong>⚠️ Architecture Compatibility Warning:</strong><br />
-      This plugin does <strong>NOT</strong> support cross-architecture translation (Rosetta2). If you run an Intel OBS binary on Apple Silicon via Rosetta2, or an Apple Silicon binary on Intel Macs, the plugin will crash. Always use OBS Studio and this plugin built for your Mac's native architecture.
+      This plugin does <strong>NOT</strong> support cross-architecture translation
+      (Rosetta2). If you run an Intel OBS binary on Apple Silicon via Rosetta2, or
+      an Apple Silicon binary on Intel Macs, the plugin will crash. Always use OBS
+      Studio and this plugin built for your Mac's native architecture.
     </div>
 
     <ol>

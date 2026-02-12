@@ -1,21 +1,50 @@
 ---
-import { joinURL } from "ufo";
+import { joinURL, withTrailingSlash } from "ufo";
+import { Octokit, type RestEndpointMethodTypes } from "@octokit/rest";
 
 import { Image } from "astro:assets";
+
+import DefineLocalDate from "../components/DefineLocalDate.astro";
+
+import { GITHUB_OWNER, GITHUB_REPO, PRODUCTION_BASE_URL } from "../lib/info.js";
 
 import Layout from "../layouts/Layout.astro";
 
 import demo from "../assets/demo.gif";
 import icon from "../assets/obs-backgroundremoval-icon.jpg";
 
+export type LatestRelease =
+  RestEndpointMethodTypes["repos"]["getLatestRelease"]["response"]["data"];
+
 const { BASE_URL } = import.meta.env;
+
+async function getLatestRelease(): Promise<LatestRelease> {
+  const octokit = new Octokit({ auth: import.meta.env.GITHUB_TOKEN });
+
+  const latestRelease = await octokit.rest.repos.getLatestRelease({
+    owner: GITHUB_OWNER,
+    repo: GITHUB_REPO,
+  });
+
+  return latestRelease.data;
+}
+
+const release = await getLatestRelease();
 ---
 
-<Layout
-  description="OBS Plugin: Background Removal / Virtual Green-screen and Low-Light Enhancement"
-  lang="en"
-  title="OBS Background Removal"
->
+<Layout lang="en" title="OBS Background Removal">
+  <Fragment slot="head-info">
+    <meta
+      name="description"
+      content="OBS Plugin: Background Removal / Virtual Green-screen and Low-Light Enhancement"
+    />
+    <link rel="canonical" href={withTrailingSlash(PRODUCTION_BASE_URL)} />
+  </Fragment>
+
+  <Fragment slot="head-bottom">
+    <DefineLocalDate />
+  </Fragment>
+
   <main class="white-box">
     <header class="icon-and-name">
       <Image src={icon} alt="OBS Background Removal Icon" height="50" />
@@ -35,14 +64,24 @@ const { BASE_URL } = import.meta.env;
       />
     </p>
 
-    <ul class="download-button-container">
+    <h2>
+      Download Latest {release.tag_name}
+      {
+        [
+          "(",
+          <local-date data-date={release.published_at}>
+            <time datetime={release.published_at}>{release.published_at}</time>
+          </local-date>,
+          ")",
+        ]
+      }
+    </h2>
+
+    <ul class="download-links">
       <li><a href={joinURL(BASE_URL, "windows/")}>Windows</a></li>
       <li><a href={joinURL(BASE_URL, "macos/")}>macOS</a></li>
       <li><a href={joinURL(BASE_URL, "ubuntu/")}>Ubuntu</a></li>
       <li><a href={joinURL(BASE_URL, "flatpak/")}>Flatpak</a></li>
-    </ul>
-
-    <ul class="download-button-container">
       <li><a href={joinURL(BASE_URL, "arch/")}>Arch Linux</a></li>
     </ul>
 
@@ -78,6 +117,10 @@ const { BASE_URL } = import.meta.env;
     </p>
 
     <p>
+      <a href={joinURL(BASE_URL, "versions/")}>Version History</a>
+    </p>
+
+    <p>
       <a href={joinURL(BASE_URL, "dev/")}>Developer resources</a>
     </p>
 
@@ -105,32 +148,6 @@ const { BASE_URL } = import.meta.env;
 
   header.icon-and-name h1 {
     margin-left: 10px;
-  }
-
-  ul.download-button-container {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    margin-top: 2em;
-    list-style: none;
-    padding: 0;
-  }
-
-  ul.download-button-container li a {
-    display: inline-block;
-    padding: 10px 20px;
-    border-radius: 5px;
-    font-weight: bold;
-    color: white;
-    background-color: var(--color-button-1);
-    box-shadow: 0 4px 8px var(--color-box-shadow);
-    text-decoration: none;
-    transition: background-color 0.3s ease;
-  }
-
-  ul.download-button-container li a:hover,
-  ul.download-button-container li a:focus {
-    background-color: var(--color-button-2);
   }
 
   .ask-anything-button {
