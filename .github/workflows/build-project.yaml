@@ -172,9 +172,17 @@ jobs:
 
       - name: "Install dependencies from vcpkg"
         run: ".github/scripts/install-vcpkg-macos.bash"
-      
-      - name: "Download ONNX Runtime"
-        run: "cmake -P cmake/DownloadOnnxruntime.cmake"
+
+      - name: Set Up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Build ONNX Runtime
+        run: |
+          brew install ccache
+          pip3 install flatbuffers
+          ./scripts/build_ort_macos.sh
 
       - name: Build Plugin 🧱
         uses: ./.github/actions/build-plugin

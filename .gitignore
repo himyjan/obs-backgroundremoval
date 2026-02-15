@@ -12,6 +12,7 @@
 !/scripts
 !/src
 !/vcpkg-triplets
+!/vendor
 !.clang-format
 !.cmake-format.json
 !.gersemirc

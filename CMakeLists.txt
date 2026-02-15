@@ -85,19 +85,76 @@ else()
 endif()
 
 if(APPLE)
-  list(PREPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/onnxruntime")
-  find_package(onnxruntime CONFIG REQUIRED)
-  get_target_property(ONNXRUNTIME_DYLIB_PATH onnxruntime::onnxruntime IMPORTED_LOCATION_RELEASE)
-  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE onnxruntime::onnxruntime)
+  if(USE_SYSTEM_ONNXRUNTIME)
+    find_package(onnxruntime CONFIG REQUIRED)
+  else()
+    list(PREPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/.deps_vendor/ort_vcpkg_installed/universal-osx")
 
-  if(NOT USE_SYSTEM_ONNXRUNTIME)
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE "${ONNXRUNTIME_DYLIB_PATH}")
-    set_property(SOURCE "${ONNXRUNTIME_DYLIB_PATH}" PROPERTY MACOSX_PACKAGE_LOCATION Frameworks)
+    find_package(absl CONFIG REQUIRED)
+    find_package(Boost COMPONENTS mp11 REQUIRED)
+    find_package(date CONFIG REQUIRED)
+    find_package(Eigen3 CONFIG REQUIRED)
+    find_package(flatbuffers CONFIG REQUIRED)
+    find_package(Iconv REQUIRED)
+    find_package(Microsoft.GSL 4.0 CONFIG REQUIRED)
+    find_package(nlohmann_json CONFIG REQUIRED)
+    find_package(ONNX CONFIG REQUIRED)
+    find_package(Protobuf CONFIG REQUIRED)
+    find_package(re2 CONFIG REQUIRED)
+
+    add_library(cpuinfo STATIC IMPORTED)
     set_target_properties(
-      ${CMAKE_PROJECT_NAME}
-      PROPERTIES XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@loader_path/../Frameworks"
+      cpuinfo
+      PROPERTIES IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/.deps_vendor/lib/libcpuinfo.a"
     )
+    add_library(cpuinfo::cpuinfo ALIAS cpuinfo)
+
+    add_library(onnxruntime INTERFACE)
+
+    foreach(
+      name
+      onnxruntime_session
+      onnxruntime_optimizer
+      onnxruntime_providers
+      onnxruntime_lora
+      onnxruntime_framework
+      onnxruntime_graph
+      onnxruntime_util
+      onnxruntime_mlas
+      onnxruntime_common
+      onnxruntime_flatbuffers
+      onnxruntime_providers_coreml
+      coreml_proto
+      kleidiai
+    )
+      add_library(${name} STATIC IMPORTED)
+      set_target_properties(
+        ${name}
+        PROPERTIES IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/.deps_vendor/lib/lib${name}.a"
+      )
+      add_library(onnxruntime::${name} ALIAS ${name})
+    endforeach()
+
+    target_include_directories(
+      onnxruntime
+      INTERFACE
+        "${CMAKE_CURRENT_SOURCE_DIR}/.deps_vendor/onnxruntime/include/onnxruntime/core/session"
+        "${CMAKE_CURRENT_SOURCE_DIR}/.deps_vendor/onnxruntime/include/onnxruntime/core/providers/cpu"
+        "${CMAKE_CURRENT_SOURCE_DIR}/.deps_vendor/onnxruntime/include/onnxruntime/core/providers/coreml"
+    )
+
+    target_link_libraries(
+      onnxruntime
+      INTERFACE
+        "onnxruntime::onnxruntime_session;onnxruntime::onnxruntime_providers_coreml;coreml_proto;onnxruntime::onnxruntime_optimizer;onnxruntime::onnxruntime_providers;onnxruntime::onnxruntime_lora;onnxruntime::onnxruntime_framework;onnxruntime::onnxruntime_graph;onnxruntime::onnxruntime_util;onnxruntime::onnxruntime_mlas;onnxruntime::onnxruntime_common;onnxruntime::onnxruntime_flatbuffers;nlohmann_json::nlohmann_json;ONNX::onnx;ONNX::onnx_proto;protobuf::libprotobuf-lite;re2::re2;Boost::headers;safeint_interface;flatbuffers::flatbuffers;Microsoft.GSL::GSL;absl::synchronization;absl::tracing_internal;absl::time;absl::time_zone;absl::civil_time;absl::symbolize;absl::demangle_internal;absl::demangle_rust;absl::stacktrace;absl::debugging_internal;absl::malloc_internal;absl::kernel_timeout_internal;absl::graphcycles_internal;absl::str_format;absl::str_format_internal;absl::flat_hash_set;absl::flat_hash_map;absl::algorithm_container;absl::raw_hash_map;absl::raw_hash_set;absl::prefetch;absl::hashtablez_sampler;absl::hashtable_debug_hooks;absl::hashtable_control_bytes;absl::hash_policy_traits;absl::common_policy_traits;absl::hash_container_defaults;absl::hash_function_defaults;absl::cord;absl::inlined_vector;absl::inlined_vector_internal;absl::span;absl::crc_cord_state;absl::crc32c;absl::cordz_update_tracker;absl::cordz_update_scope;absl::cordz_info;absl::cordz_functions;absl::cord_internal;absl::container_common;absl::container_memory;absl::hash;absl::variant;absl::optional;absl::strings;absl::charset;absl::strings_internal;absl::string_view;absl::int128;absl::compare;absl::function_ref;absl::any_invocable;absl::city;absl::bits;absl::endian;absl::flags;absl::fixed_array;absl::weakly_mixed_integer;absl::memory;absl::meta;absl::throw_delegate;absl::iterator_traits_internal;absl::algorithm;absl::compressed_tuple;absl::utility;absl::base;absl::type_traits;absl::spinlock_wait;absl::raw_logging_internal;absl::errno_saver;absl::nullability;absl::log_severity;absl::dynamic_annotations;absl::base_internal;absl::atomic_hook;absl::core_headers;absl::config;absl::absl_log;absl::log_internal_log_impl;absl::absl_check;absl::log_internal_check_impl;date::date;Eigen3::Eigen;Iconv::Iconv;Threads::Threads;cpuinfo::cpuinfo;onnxruntime::kleidiai"
+    )
+
+    add_library(safeint_interface IMPORTED INTERFACE)
+
+    add_library(onnxruntime::onnxruntime ALIAS onnxruntime)
   endif()
+
+  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE onnxruntime::onnxruntime)
 elseif(MSVC)
   if(USE_SYSTEM_ONNXRUNTIME)
     message(FATAL_ERROR "USE_SYSTEM_ONNXRUNTIME is not supported on Windows")
@@ -152,51 +209,53 @@ endif()
 add_subdirectory(src/update-checker/CurlClient)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE CurlClient OpenCV::opencv_core OpenCV::opencv_imgproc)
 
-# Check for ONNX Runtime Execution Providers
-include(CheckLibraryExists)
+if(NOT APPLE)
+  # Check for ONNX Runtime Execution Providers
+  include(CheckLibraryExists)
 
-check_library_exists(
-  onnxruntime::onnxruntime
-  OrtSessionOptionsAppendExecutionProvider_CUDA
-  onnxruntime_c_api.h
-  HAVE_ONNXRUNTIME_CUDA_EP
-)
-if(HAVE_ONNXRUNTIME_CUDA_EP)
-  message(STATUS "ONNX Runtime CUDA Execution Provider found")
-  target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_ONNXRUNTIME_CUDA_EP)
-endif()
+  check_library_exists(
+    onnxruntime::onnxruntime
+    OrtSessionOptionsAppendExecutionProvider_CUDA
+    onnxruntime_c_api.h
+    HAVE_ONNXRUNTIME_CUDA_EP
+  )
+  if(HAVE_ONNXRUNTIME_CUDA_EP)
+    message(STATUS "ONNX Runtime CUDA Execution Provider found")
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_ONNXRUNTIME_CUDA_EP)
+  endif()
 
-check_library_exists(
-  onnxruntime::onnxruntime
-  OrtSessionOptionsAppendExecutionProvider_ROCM
-  onnxruntime_c_api.h
-  HAVE_ONNXRUNTIME_ROCM_EP
-)
-if(HAVE_ONNXRUNTIME_ROCM_EP)
-  message(STATUS "ONNX Runtime ROCM Execution Provider found")
-  target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_ONNXRUNTIME_ROCM_EP)
-endif()
+  check_library_exists(
+    onnxruntime::onnxruntime
+    OrtSessionOptionsAppendExecutionProvider_ROCM
+    onnxruntime_c_api.h
+    HAVE_ONNXRUNTIME_ROCM_EP
+  )
+  if(HAVE_ONNXRUNTIME_ROCM_EP)
+    message(STATUS "ONNX Runtime ROCM Execution Provider found")
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_ONNXRUNTIME_ROCM_EP)
+  endif()
 
-check_library_exists(
-  onnxruntime::onnxruntime
-  OrtSessionOptionsAppendExecutionProvider_MIGraphX
-  onnxruntime_c_api.h
-  HAVE_ONNXRUNTIME_MIGRAPHX_EP
-)
-if(HAVE_ONNXRUNTIME_MIGRAPHX_EP)
-  message(STATUS "ONNX Runtime MIGraphX Execution Provider found")
-  target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_ONNXRUNTIME_MIGRAPHX_EP)
-endif()
+  check_library_exists(
+    onnxruntime::onnxruntime
+    OrtSessionOptionsAppendExecutionProvider_MIGraphX
+    onnxruntime_c_api.h
+    HAVE_ONNXRUNTIME_MIGRAPHX_EP
+  )
+  if(HAVE_ONNXRUNTIME_MIGRAPHX_EP)
+    message(STATUS "ONNX Runtime MIGraphX Execution Provider found")
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_ONNXRUNTIME_MIGRAPHX_EP)
+  endif()
 
-check_library_exists(
-  onnxruntime::onnxruntime
-  OrtSessionOptionsAppendExecutionProvider_Tensorrt
-  onnxruntime_c_api.h
-  HAVE_ONNXRUNTIME_TENSORRT_EP
-)
-if(HAVE_ONNXRUNTIME_TENSORRT_EP)
-  message(STATUS "ONNX Runtime TensorRT Execution Provider found")
-  target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_ONNXRUNTIME_TENSORRT_EP)
+  check_library_exists(
+    onnxruntime::onnxruntime
+    OrtSessionOptionsAppendExecutionProvider_Tensorrt
+    onnxruntime_c_api.h
+    HAVE_ONNXRUNTIME_TENSORRT_EP
+  )
+  if(HAVE_ONNXRUNTIME_TENSORRT_EP)
+    message(STATUS "ONNX Runtime TensorRT Execution Provider found")
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_ONNXRUNTIME_TENSORRT_EP)
+  endif()
 endif()
 
 target_sources(
@@ -217,5 +276,19 @@ target_compile_options(
   ${CMAKE_PROJECT_NAME}
   PRIVATE $<$<C_COMPILER_ID:Clang,AppleClang>:-Wno-error=unused-command-line-argument>
 )
+
+if(APPLE)
+  target_link_options(
+    ${CMAKE_PROJECT_NAME}
+    PRIVATE "-Wl,-exported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/src/exported_symbols_macos.txt"
+  )
+elseif(MSVC)
+  target_sources(${CMAKE_PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/exported_symbols_windows.def")
+else()
+  target_link_options(
+    ${CMAKE_PROJECT_NAME}
+    PRIVATE "-Wl,--version-script,${CMAKE_CURRENT_SOURCE_DIR}/src/exported_symbols_linux.map" "-Wl,-Bsymbolic"
+  )
+endif()
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
